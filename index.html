@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FF Aim Trainer</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body{
+  margin:0;
+  background:#020617;
+  color:white;
+  font-family:system-ui;
+  text-align:center;
+}
+
+header{
+  padding:16px;
+  font-size:22px;
+  font-weight:600;
+}
+
+#arena{
+  position:relative;
+  width:100%;
+  height:70vh;
+  background:#020617;
+  overflow:hidden;
+}
+
+.target{
+  position:absolute;
+  width:60px;
+  height:60px;
+  border-radius:50%;
+  background:red;
+  box-shadow:0 0 20px red;
+}
+
+#info{
+  padding:12px;
+  font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<header>🔥 FF Aim Trainer</header>
+
+<div id="info">
+  Pontos: <span id="score">0</span>
+</div>
+
+<div id="arena"></div>
+
+<script>
+let score = 0;
+let speed = 1200;
+
+const arena = document.getElementById("arena");
+const scoreEl = document.getElementById("score");
+
+function spawnTarget(){
+  const t = document.createElement("div");
+  t.className = "target";
+
+  const x = Math.random() * (arena.clientWidth - 60);
+  const y = Math.random() * (arena.clientHeight - 60);
+
+  t.style.left = x + "px";
+  t.style.top = y + "px";
+
+  t.onclick = () => {
+    score += 10;
+    scoreEl.textContent = score;
+    t.remove();
+  };
+
+  arena.appendChild(t);
+
+  setTimeout(() => {
+    if(t.parentNode) t.remove();
+  }, speed);
+}
+
+setInterval(() => {
+  spawnTarget();
+  if(speed > 400) speed -= 20;
+}, 800);
+
+// PWA
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("service-worker.js");
+}
+</script>
+
+</body>
+</html>
