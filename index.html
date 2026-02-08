@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FF Aim Trainer</title>
+<title>FF Aim Trainer Ultra</title>
 
 <link rel="manifest" href="manifest.json">
 
@@ -11,21 +11,48 @@
 body{
   margin:0;
   background:#020617;
-  color:white;
+  color:#e5e7eb;
   font-family:system-ui;
-  text-align:center;
+  user-select:none;
+  overflow:hidden;
 }
 
 header{
-  padding:16px;
+  padding:14px;
+  text-align:center;
   font-size:22px;
-  font-weight:600;
+  font-weight:700;
+}
+
+#menu, #game, #rank{
+  display:none;
+}
+
+.active{display:block;}
+
+button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-size:16px;
+  font-weight:700;
+  background:#38bdf8;
+  color:#020617;
+  margin-top:10px;
+}
+
+.card{
+  background:#0f172a;
+  border-radius:14px;
+  padding:14px;
+  margin:12px;
 }
 
 #arena{
   position:relative;
   width:100%;
-  height:70vh;
+  height:60vh;
   background:#020617;
   overflow:hidden;
 }
@@ -33,63 +60,203 @@ header{
 .target{
   position:absolute;
   width:60px;
-  height:60px;
-  border-radius:50%;
-  background:red;
-  box-shadow:0 0 20px red;
+  height:90px;
+  background:#6b7280;
+  border-radius:18px;
 }
 
-#info{
-  padding:12px;
-  font-size:18px;
+.head{
+  position:absolute;
+  top:-12px;
+  left:15px;
+  width:30px;
+  height:30px;
+  border-radius:50%;
+  background:#facc15;
+}
+
+.mira{
+  position:absolute;
+  width:40px;
+  height:40px;
+  border:2px solid #38bdf8;
+  border-radius:50%;
+  pointer-events:none;
+}
+
+#hud{
+  display:flex;
+  justify-content:space-around;
+  font-size:15px;
+}
+
+input[type=range]{
+  width:100%;
 }
 </style>
 </head>
 
 <body>
 
-<header>🔥 FF Aim Trainer</header>
+<header>🔥 FF AIM TRAINER ULTRA</header>
 
-<div id="info">
-  Pontos: <span id="score">0</span>
+<!-- MENU -->
+<div id="menu" class="active">
+  <div class="card">
+    <button onclick="start('treino')">🎯 TREINO</button>
+    <button onclick="start('cs')">🎮 CS</button>
+    <button onclick="start('rank')">🏆 RANK</button>
+    <button onclick="showRank()">📊 RANKING</button>
+  </div>
 </div>
 
-<div id="arena"></div>
+<!-- GAME -->
+<div id="game">
+  <div id="hud">
+    <div>🎯 <span id="score">0</span></div>
+    <div>⏱️ <span id="time">30</span>s</div>
+    <div>🔥 CAPA</div>
+  </div>
+
+  <div id="arena"></div>
+
+  <div class="card">
+    <b>⚙️ Sensibilidade</b>
+    <input type="range" min="0" max="200" value="120" id="sens">
+    <span id="sensVal">120</span>
+    <button onclick="endGame()">⏹️ Sair</button>
+  </div>
+</div>
+
+<!-- RANK -->
+<div id="rank">
+  <div class="card">
+    <h3>🏆 Ranking</h3>
+    <ol id="rankList"></ol>
+    <button onclick="backMenu()">⬅️ Voltar</button>
+  </div>
+</div>
+
+<audio id="hsSound" src="headshot.mp3"></audio>
 
 <script>
-let score = 0;
-let speed = 1200;
+let mode="treino";
+let score=0;
+let time=30;
+let sens=120;
+let playing=false;
+let timer;
+let arena=document.getElementById("arena");
+let mira=document.createElement("div");
+mira.className="mira";
+arena.appendChild(mira);
 
-const arena = document.getElementById("arena");
-const scoreEl = document.getElementById("score");
+document.getElementById("sens").oninput=e=>{
+  sens=e.target.value;
+  document.getElementById("sensVal").textContent=sens;
+};
+
+arena.addEventListener("touchmove",e=>{
+  const t=e.touches[0];
+  mira.style.left=t.clientX-20+"px";
+  mira.style.top=t.clientY-20+"px";
+});
+
+function start(m){
+  mode=m;
+  score=0;
+  time=m==="rank"?20:30;
+  document.getElementById("score").textContent=0;
+  document.getElementById("time").textContent=time;
+  document.getElementById("menu").classList.remove("active");
+  document.getElementById("game").classList.add("active");
+  playing=true;
+
+  timer=setInterval(()=>{
+    time--;
+    document.getElementById("time").textContent=time;
+    if(time<=0) endGame();
+  },1000);
+
+  spawnLoop();
+}
+
+function spawnLoop(){
+  if(!playing) return;
+  spawnTarget();
+  setTimeout(spawnLoop, 900 - sens*2);
+}
 
 function spawnTarget(){
-  const t = document.createElement("div");
-  t.className = "target";
+  const t=document.createElement("div");
+  t.className="target";
 
-  const x = Math.random() * (arena.clientWidth - 60);
-  const y = Math.random() * (arena.clientHeight - 60);
+  const head=document.createElement("div");
+  head.className="head";
+  t.appendChild(head);
 
-  t.style.left = x + "px";
-  t.style.top = y + "px";
+  let x=Math.random()*(arena.clientWidth-70);
+  let y=Math.random()*(arena.clientHeight-100);
+  t.style.left=x+"px";
+  t.style.top=y+"px";
 
-  t.onclick = () => {
-    score += 10;
-    scoreEl.textContent = score;
+  // IA DE MOVIMENTO
+  let dir=Math.random()>0.5?1:-1;
+  const move=setInterval(()=>{
+    y+=dir*(mode==="cs"?1.2:0.6);
+    if(y<20||y>arena.clientHeight-120) dir*=-1;
+    t.style.top=y+"px";
+  },30);
+
+  head.onclick=e=>{
+    e.stopPropagation();
+    score+=100;
+    document.getElementById("hsSound").play();
+    document.getElementById("score").textContent=score;
+    clearInterval(move);
     t.remove();
   };
 
   arena.appendChild(t);
 
-  setTimeout(() => {
+  setTimeout(()=>{
+    clearInterval(move);
     if(t.parentNode) t.remove();
-  }, speed);
+  },1200);
 }
 
-setInterval(() => {
-  spawnTarget();
-  if(speed > 400) speed -= 20;
-}, 800);
+function endGame(){
+  playing=false;
+  clearInterval(timer);
+  saveRank(score);
+  document.getElementById("game").classList.remove("active");
+  document.getElementById("menu").classList.add("active");
+}
+
+function saveRank(p){
+  let r=JSON.parse(localStorage.getItem("rank")||"[]");
+  r.push(p);
+  r.sort((a,b)=>b-a);
+  r=r.slice(0,5);
+  localStorage.setItem("rank",JSON.stringify(r));
+}
+
+function showRank(){
+  document.getElementById("menu").classList.remove("active");
+  document.getElementById("rank").classList.add("active");
+  const list=document.getElementById("rankList");
+  list.innerHTML="";
+  JSON.parse(localStorage.getItem("rank")||"[]").forEach(p=>{
+    const li=document.createElement("li");
+    li.textContent=p+" pts";
+    list.appendChild(li);
+  });
+}
+
+function backMenu(){
+  document.getElementById("rank").classList.remove("active");
+  document.getElementById("menu").classList.add("active");
+}
 
 // PWA
 if("serviceWorker" in navigator){
